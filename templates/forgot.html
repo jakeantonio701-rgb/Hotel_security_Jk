@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block auth %}
+<div class="card">
+  <h2>Forgot Password</h2>
+  <form method="post">
+    <label>Your username</label><input name="username" required autofocus>
+    <button class="btn b1">Request reset</button>
+  </form>
+  <p class="note">An admin will give you a one-time reset code in person.</p>
+  <p class="links"><a href="{{ url_for('reset') }}">I already have a code</a> · <a href="{{ url_for('login') }}">Back to login</a></p>
+</div>
+{% endblock %}

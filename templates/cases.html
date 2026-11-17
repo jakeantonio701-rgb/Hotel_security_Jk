@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field_inputs %}
+{% block title %}{{ cfg.title }}{% endblock %}
+{% block content %}
+{% if cfg.note %}<p class="note">{{ cfg.note }}</p>{% endif %}
+<div class="card">
+  <h3>Record new</h3>
+  <form method="post" action="{{ url_for('case_add', key=key) }}">
+    {{ field_inputs(fields) }}
+    <button class="btn b1">+ Record</button>
+  </form>
+</div>
+
+<div class="top"><div>
+  <a class="btn {{ 'b1' if not status else 'b2' }}" href="{{ url_for('cases', key=key) }}">All</a>
+  {% for s in cfg.statuses %}<a class="btn {{ 'b1' if status==s else 'b2' }}" href="{{ url_for('cases', key=key, status=s) }}">{{ s }}</a>{% endfor %}
+</div></div>
+
+<div class="wrap"><table>
+  <tr><th>#</th><th>Type</th><th>Details</th><th>Location</th><th>Status</th><th>Opened</th><th>Closed</th><th>By</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.id }}</td><td>{{ r.kind }}</td><td>{{ r.description }}</td><td>{{ r.location or '—' }}</td>
+    <td><span class="badge {{ badge(r.status) }}">{{ r.status }}</span></td>
+    <td>{{ r.opened_at.strftime('%b %d, %I:%M %p') }}</td>
+    <td>{{ r.closed_at.strftime('%b %d, %I:%M %p') if r.closed_at else '—' }}</td>
+    <td>{{ r.by_name }}</td>
+    <td><a class="btn b2" href="{{ url_for('case_detail', key=key, rid=r.id) }}">Open</a></td>
+  </tr>
+  {% else %}<tr><td colspan="9" class="note">Nothing recorded yet.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

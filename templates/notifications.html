@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+{% for level, text, link in notes %}
+<div class="alert {{ level }}">
+  <span>{{ '🚨 Critical' if level=='critical' else ('⚠ Important' if level=='high' else 'ℹ Info') }} · {{ text }}</span>
+  <a href="{{ link }}">Open →</a>
+</div>
+{% else %}<div class="card"><p>All clear. Nothing needs your attention right now. ✔</p></div>{% endfor %}
+<p class="note">Escalation alerts use these response times: critical 1 h, high 4 h, medium 24 h, low 72 h. Change them in <code>SLA_HOURS</code> in app.py.</p>
+{% endblock %}

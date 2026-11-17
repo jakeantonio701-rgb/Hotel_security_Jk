@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Visitor Log{% endblock %}
+{% block content %}
+<p class="note">Read-only visitor records for security reference and incident follow-up.</p>
+<div class="wrap"><table>
+  <tr><th>Visitor</th><th>ID presented</th><th>Visiting</th><th>Room</th><th>Time in</th><th>Time out</th></tr>
+  {% for v in visitors %}
+  <tr>
+    <td>{{ v.visitor_name }}</td><td>{{ v.id_presented }}</td><td>{{ v.guest_visited }}</td>
+    <td>{{ v.room_no }}</td><td>{{ v.time_in }}</td><td>{{ v.time_out or '—' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="note">No visitors logged.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

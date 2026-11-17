@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ rep.title }}{% if rep.dated %} ({{ rep.d_from }} to {{ rep.d_to }}){% endif %}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #2f2522; margin: 0; padding: 24px; background: #fff; font-size: 12px; }
+  .bar { margin-bottom: 16px; }
+  .bar button, .bar a { display: inline-block; padding: 8px 16px; border: 0; border-radius: 6px; cursor: pointer;
+    background: #A86F6E; color: #fff; font: inherit; text-decoration: none; margin-right: 6px; }
+  .bar a { background: #CDBB94; color: #3E3229; }
+  header { border-bottom: 3px solid #D8ADA8; padding-bottom: 10px; margin-bottom: 12px; }
+  h1 { margin: 0; font-size: 20px; }
+  .hotel { color: #A86F6E; font-weight: 600; letter-spacing: .04em; }
+  .sub { color: #7A655C; margin-top: 4px; }
+  .sum { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+  .sum div { border: 1px solid #CDBB94; border-radius: 6px; padding: 6px 14px; min-width: 100px; }
+  .sum b { display: block; font-size: 17px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid #CDBB94; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #F0E6D0; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .sign { display: flex; gap: 40px; margin-top: 44px; }
+  .sign div { flex: 1; border-top: 1px solid #333; padding-top: 4px; }
+  .foot { margin-top: 16px; color: #7A655C; }
+  @media print { .bar { display: none; } body { padding: 0; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button onclick="window.print()">🖨 Print / Save as PDF</button>
+  <a href="javascript:window.close()">Close</a>
+</div>
+
+<header>
+  <div class="hotel">🛡 HOTEL SECURITY DEPARTMENT</div>
+  <h1>{{ rep.title }}</h1>
+  <div class="sub">
+    {% if rep.dated %}Period: {{ rep.d_from }} to {{ rep.d_to }}{% else %}As of {{ generated.strftime('%B %d, %Y %I:%M %p') }}{% endif %}
+    {% if rep.filters %} · Filters: {{ rep.filters|join(', ') }}{% endif %}
+  </div>
+</header>
+
+<div class="sum">{% for k, v in rep.summary.items() %}<div><b>{{ v }}</b>{{ k }}</div>{% endfor %}</div>
+
+<table>
+  <thead><tr>{% for h in rep.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+    {% for row in rep.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>
+    {% else %}<tr><td colspan="{{ rep.headers|length }}">No records for this report.</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<div class="foot">
+  Prepared by: <b>{{ me.full_name }}</b>{% if me.job_title %} — {{ me.job_title }}{% endif %}{% if me.employee_no %} (Emp. no. {{ me.employee_no }}){% endif %}<br>
+  Generated: {{ generated.strftime('%B %d, %Y %I:%M %p') }}
+</div>
+<div class="sign">
+  <div>Prepared by (signature / date)</div>
+  <div>Reviewed / approved by (signature / date)</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="card home-welcome">
+  <div>
+    <p class="note">HOTEL SECURITY DEPARTMENT</p>
+    <h2>Welcome, {{ session.name }}!</h2>
+    <p>Review security notifications and stay up to date with what's happening across the property.</p>
+  </div>
+  <a class="btn b1" href="{{ url_for('dashboard') }}">Open dashboard</a>
+</section>
+
+<section class="home-notifications">
+  <div class="rt">
+    <h2>Notifications</h2>
+    <a href="{{ url_for('notifications') }}">View all</a>
+  </div>
+  {% for level, text, link in notes %}
+  <div class="alert {{ level }}">
+    <span>{{ '🚨 Critical' if level=='critical' else ('⚠ Important' if level=='high' else 'ℹ Info') }} · {{ text }}</span>
+    <a href="{{ link }}">Open →</a>
+  </div>
+  {% else %}
+  <div class="card"><p>All clear. Nothing needs your attention right now. ✔</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

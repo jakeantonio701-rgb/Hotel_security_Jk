@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block auth %}
+<div class="card">
+  <h2>Reset Password</h2>
+  <form method="post">
+    <label>Username</label><input name="username" required>
+    <label>Reset code (from admin)</label><input name="code" required inputmode="numeric">
+    <label>New password (min. 8 characters)</label><input type="password" name="password" required minlength="8">
+    <label>Confirm new password</label><input type="password" name="confirm" required minlength="8">
+    <button class="btn b1">Set new password</button>
+  </form>
+  <p class="links"><a href="{{ url_for('login') }}">← Back to login</a></p>
+</div>
+{% endblock %}

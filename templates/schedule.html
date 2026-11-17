@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Guard Shift Schedule{% endblock %}
+{% block content %}
+<div class="top">
+  <div>
+    <a class="btn b2" href="{{ url_for('schedule', week=prev) }}">← Previous week</a>
+    <a class="btn b2" href="{{ url_for('schedule') }}">This week</a>
+    <a class="btn b2" href="{{ url_for('schedule', week=nxt) }}">Next week →</a>
+  </div>
+  <form method="post" action="{{ url_for('schedule_copy') }}" class="inl">
+    <input type="hidden" name="week" value="{{ start }}">
+    <button class="btn b2" data-confirm="Copy last week's shifts into this week? Existing shifts are kept." data-title="Copy last week" data-yes="Copy">⧉ Copy last week</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Assign a shift</h3>
+  <form method="post" action="{{ url_for('schedule_add') }}">
+    <div class="row">
+      <div><label>Guard</label><select name="staff_id">{% for s in staff %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}</select></div>
+      <div><label for="shift-date">Date</label><input id="shift-date" type="date" name="shift_date" value="{{ today }}" min="{{ today.isoformat() }}" required></div>
+      <div><label>Shift</label><select name="shift">{% for s in SHIFTS %}<option>{{ s }}</option>{% endfor %}</select></div>
+      <div><label for="shift-post">Post (optional)</label><select id="shift-post" name="post"><option value="">No post assigned</option>{% for area in areas %}<option value="{{ area }}">{{ area }}</option>{% endfor %}</select></div>
+    </div>
+    <button class="btn b1">Save shift</button>
+    <span class="note">Assigning a guard who already has a shift that day replaces it.</span>
+  </form>
+</div>
+
+<div class="wrap"><table class="sched">
+  <tr><th>Guard</th>{% for d in days %}<th class="{{ 'today' if d == today }}">{{ d.strftime('%a %b %d') }}</th>{% endfor %}</tr>
+  {% for s in staff %}
+  <tr>
+    <td><b>{{ s.full_name }}</b><br><span class="note">{{ s.job_title }}</span></td>
+    {% for d in days %}{% set e = grid.get((s.id, d)) %}
+    <td class="{{ 'today' if d == today }}">
+      {% if e %}
+      <span class="badge {{ {'Day':'medium','Mid':'low','Night':'high'}[e.shift] }}">{{ e.shift }}</span>
+      <form method="post" action="{{ url_for('schedule_delete', sid=e.id) }}" class="inl">
+        <button class="xbtn" title="Remove" data-confirm="Remove this shift?" data-title="Remove shift" data-yes="Remove">✕</button>
+      </form>
+      {% if e.post %}<div class="note">{{ e.post }}</div>{% endif %}
+      {% else %}<span class="note">—</span>{% endif %}
+    </td>
+    {% endfor %}
+  </tr>
+  {% else %}<tr><td colspan="8" class="note">Add security personnel first (Security Personnel page).</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

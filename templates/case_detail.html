@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ cfg.single }} #{{ r.id }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('cases', key=key) }}">← Back to {{ cfg.title|lower }}</a></p>
+<div class="cols">
+  <div class="card">
+    <h3>{{ r.kind }} <span class="badge {{ badge(r.status) }}">{{ r.status }}</span></h3>
+    <dl class="kv">
+      {% for label, value in details %}<dt>{{ label }}</dt><dd class="pre">{{ value }}</dd>{% endfor %}
+      <dt>Recorded by</dt><dd>{{ r.by_name or '—' }}</dd>
+      <dt>Closed</dt><dd>{{ r.closed_at.strftime('%b %d, %Y %I:%M %p') if r.closed_at else 'Not yet' }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>{{ 'Response coordination log' if cfg.agencies else 'Investigation log' }}</h3>
+    <form method="post" action="{{ url_for('case_note', key=key, rid=r.id) }}">
+      <div class="row">
+        <div><label>Status</label><select name="status">{% for s in cfg.statuses %}<option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+        {% if cfg.agencies %}
+        <div><label>Agency contacted (optional)</label><select name="agency"><option value="">—</option>{% for a in cfg.agencies %}<option>{{ a }}</option>{% endfor %}</select></div>
+        {% endif %}
+      </div>
+      <input name="note" placeholder="{{ 'Action taken / instructions given' if cfg.agencies else 'What was done or found?' }}">
+      <button class="btn b1">Log update</button>
+    </form>
+    <ul class="timeline">
+      {% for n in notes %}
+      <li><b>{{ n.status }}</b>{% if n.agency %} · <span class="badge high">{{ n.agency }}</span>{% endif %}
+        <span class="note">{{ n.created_at.strftime('%b %d, %I:%M %p') }} · {{ n.who or 'Unknown' }}</span>
+        {% if n.note %}<div>{{ n.note }}</div>{% endif %}</li>
+      {% endfor %}
+      <li><b>Opened</b><span class="note">{{ r.opened_at.strftime('%b %d, %I:%M %p') }} · {{ r.by_name or 'Unknown' }}</span></li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

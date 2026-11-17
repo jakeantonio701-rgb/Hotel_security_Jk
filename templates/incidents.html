@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Incident Reporting &amp; Tracking{% endblock %}
+{% block content %}
+<div class="card">
+  <h3>Report New Incident</h3>
+  <form method="post" action="{{ url_for('add_incident') }}" enctype="multipart/form-data">
+    <div class="row">
+      <div><label>Category *</label><select name="category" id="incident-category" required>{% for c in CATEGORIES %}<option>{{ c }}</option>{% endfor %}</select></div>
+      <div><label>Severity *</label><select name="severity" required>{% for s in SEVERITIES %}<option>{{ s }}</option>{% endfor %}</select></div>
+      <div><label>Location *</label>
+        <select name="location" id="incident-location" required>
+          <option value="">Choose a location</option>
+          {% for place in locations %}<option value="{{ place }}" {{ 'selected' if loc==place }}>{{ place }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="incident-location-details-field" hidden><label>Specify location *</label><input name="location_details" maxlength="100"></div>
+      <div id="property-type-field" hidden><label>Report type *</label>
+        <select name="property_report_type">
+          <option value="">Choose lost or found</option>
+          <option>Lost item (guest reported)</option>
+          <option>Found item (turned in)</option>
+        </select>
+      </div>
+      <div id="incident-room-field" hidden><label>Room number</label><input name="room_no" maxlength="10"></div>
+      <div><label for="incident-at">Time of incident *</label><input id="incident-at" type="datetime-local" name="incident_at" value="{{ incident_now }}" min="{{ incident_now }}" required></div>
+      <div><label id="people-involved-label">People involved</label><input name="involved" maxlength="200"></div>
+      <div><label id="item-label">Item / property</label><input name="item_desc" maxlength="200"></div>
+      <div id="property-contact-field" hidden><label>Owner / guest contact</label><input name="contact" maxlength="100"></div>
+      <div>
+        <label>Incident photo (JPG, PNG, or WebP; max 6 MB)</label>
+        <input id="incident-photo" class="camera-input" type="file" name="photo"
+               accept="image/jpeg,image/png,image/webp" capture="environment">
+        <label class="btn b2 camera-button" for="incident-photo" aria-label="Take incident photo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 4h-4L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path>
+            <circle cx="12" cy="13" r="3"></circle>
+          </svg>
+          <span>Take photo</span>
+        </label>
+        <span id="incident-photo-name" class="note" aria-live="polite">No photo selected</span>
+      </div>
+    </div>
+    <label for="incident-description">What happened? <span class="note">(optional)</span></label>
+    <textarea id="incident-description" name="description" rows="3" maxlength="2000" placeholder="Add any helpful details (optional)"></textarea>
+    <button class="btn b1">Submit Report</button>
+  </form>
+</div>
+
+<div class="top">
+  <div>
+    <a class="btn {{ 'b1' if not status else 'b2' }}" href="{{ url_for('incidents') }}">All</a>
+    {% for s in STATUSES %}<a class="btn {{ 'b1' if status==s else 'b2' }}" href="{{ url_for('incidents', status=s) }}">{{ s|capitalize }}</a>{% endfor %}
+  </div>
+</div>
+
+<div class="wrap"><table>
+  <tr><th>#</th><th>Category / incident</th><th>Category</th><th>Location</th><th>Severity</th><th>Status</th><th>Assigned</th><th>CCTV</th><th>Incident time</th><th>Reported</th><th>Actions</th></tr>
+  {% for i in incidents %}
+  <tr>
+    <td>{{ i.id }}</td>
+    <td><a href="{{ url_for('incident_detail', iid=i.id) }}"><b>{{ i.title }}</b></a>
+      {% if i.escalation_level %}<br><span class="badge high">Escalated → {{ i.escalated_to }}</span>{% endif %}</td>
+    <td>{{ i.category }}</td><td>{{ i.location }}</td>
+    <td><span class="badge {{ i.severity }}">{{ i.severity }}</span></td>
+    <td><span class="badge {{ {'open':'high','investigating':'medium','resolved':'ok'}[i.status] }}">{{ i.status }}</span></td>
+    <td>{{ i.assignee or '—' }}</td>
+    <td>{% if i.cctv_count %}📹 {{ i.cctv_count }}{% else %}—{% endif %}</td>
+    <td>{{ i.incident_at.strftime('%b %d, %I:%M %p') if i.incident_at else '—' }}</td>
+    <td>{{ i.created_at.strftime('%b %d, %I:%M %p') }}<br><span class="note">{{ i.reporter }}</span></td>
+    <td>
+      <a class="btn b2" href="{{ url_for('incident_detail', iid=i.id) }}">Open</a>
+      <form method="post" action="{{ url_for('delete_incident', iid=i.id) }}" class="inl">
+        <button class="btn b3" data-confirm="Delete incident #{{ i.id }} with its timeline and CCTV references? This cannot be undone." data-title="Delete incident" data-yes="Delete">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="11" class="note">No incidents found.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleRoomField(){
+  const field = document.getElementById('incident-room-field');
+  const isRoom = document.getElementById('incident-location').value === 'Guest Room';
+  field.hidden = !isRoom;
+  field.querySelector('input').required = isRoom;
+  const otherField = document.getElementById('incident-location-details-field');
+  const isOther = document.getElementById('incident-location').value === 'Other / not listed';
+  otherField.hidden = !isOther;
+  otherField.querySelector('input').required = isOther;
+}
+function togglePropertyFields(){
+  const isProperty = document.getElementById('incident-category').value === 'Lost / Found Property';
+  const type = document.querySelector('[name="property_report_type"]');
+  const item = document.querySelector('[name="item_desc"]');
+  document.getElementById('property-type-field').hidden = !isProperty;
+  document.getElementById('property-contact-field').hidden = !isProperty;
+  document.getElementById('people-involved-label').textContent = isProperty ? 'Owner / guest name' : 'People involved';
+  document.getElementById('item-label').textContent = isProperty ? 'Item description' : 'Item / property';
+  type.required = isProperty;
+  item.required = isProperty;
+}
+document.getElementById('incident-location').addEventListener('change', toggleRoomField);
+document.getElementById('incident-category').addEventListener('change', togglePropertyFields);
+document.getElementById('incident-photo').addEventListener('change', event => {
+  const file = event.target.files[0];
+  document.getElementById('incident-photo-name').textContent = file ? file.name : 'No photo selected';
+});
+toggleRoomField();
+togglePropertyFields();
+</script>
+{% endblock %}

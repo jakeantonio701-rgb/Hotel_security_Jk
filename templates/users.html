@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}User Accounts{% endblock %}
+{% block content %}
+<div class="card">
+  <h3>Add User Account</h3>
+  <form method="post">
+    <div class="row">
+      <div><input name="full_name" placeholder="Full name (unique)" required></div>
+      <div><input name="username" placeholder="Username (unique)" required></div>
+      <div><input type="email" name="email" placeholder="Email"></div>
+      <div><input name="phone" placeholder="Phone"></div>
+      <div>
+        <select name="job_title" aria-label="Job title">
+          <option value="">Choose a job title</option>
+          {% for title in STAFF_TITLES %}<option value="{{ title }}">{{ title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><input name="employee_no" placeholder="Employee no. (unique)"></div>
+      <div><input type="password" name="password" placeholder="Password (min. 8)" required minlength="8"></div>
+    </div>
+    <button class="btn b1">+ Add User</button>
+  </form>
+</div>
+
+<div class="wrap"><table>
+  <tr><th>User</th><th>Username</th><th>Contact</th><th>Status</th><th>Last login</th><th>Actions</th></tr>
+  {% for u in users %}
+  <tr>
+    <td>
+      <span class="chip">
+        {% if u.profile_photo_filename %}<img class="avatar" src="{{ url_for('profile_photo', uid=u.id) }}" alt="">
+        {% else %}<span class="avatar">{{ initials(u.full_name) }}</span>{% endif %}
+        <span><b>{{ u.full_name }}</b><br><span class="note">{{ u.job_title or '—' }}{% if u.employee_no %} · {{ u.employee_no }}{% endif %}</span></span></span>
+    </td>
+    <td>{{ u.username }}</td>
+    <td>{{ u.email or '—' }}<br><span class="note">{{ u.phone or '' }}</span></td>
+    <td>
+      <span class="badge {{ 'ok' if u.is_active else 'high' }}">{{ 'Active' if u.is_active else 'Pending' }}</span>
+      {% if u.reset_requested %}<span class="badge medium">Reset requested</span>{% endif %}
+    </td>
+    <td>{{ u.last_login.strftime('%b %d, %I:%M %p') if u.last_login else '—' }}</td>
+    <td>
+      {% if u.id == session.user_id %}
+        <a class="btn b2" href="{{ url_for('profile') }}">My profile</a> <span class="note">(you)</span>
+      {% else %}
+        <a class="btn b2" href="{{ url_for('user_profile', uid=u.id) }}">View profile</a>
+        <form method="post" action="{{ url_for('user_status', uid=u.id) }}" class="inl">
+          {% if not u.is_active %}
+          <button class="btn b1" name="active" value="1">Approve</button>
+          {% else %}
+          <button class="btn b3" name="active" value="0" data-confirm="Deactivate {{ u.full_name }}? They will no longer be able to sign in." data-title="Deactivate account" data-yes="Deactivate">Deactivate</button>
+          {% endif %}
+        </form>
+        {% if u.is_active %}
+        <form method="post" action="{{ url_for('issue_code', uid=u.id) }}" class="inl">
+          <button class="btn b2" data-confirm="Issue a 15-minute reset code for {{ u.full_name }}?" data-title="Password reset" data-yes="Issue code">Reset code</button>
+        </form>
+        {% endif %}
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

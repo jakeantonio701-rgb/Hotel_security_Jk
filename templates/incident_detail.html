@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Incident #{{ i.id }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('incidents') }}">← Back to incidents</a></p>
+
+<div class="card">
+  <h3>{{ i.title }}</h3>
+  <span class="badge {{ i.severity }}">{{ i.severity }}</span>
+  <span class="badge {{ {'open':'high','investigating':'medium','resolved':'ok'}[i.status] }}">{{ i.status }}</span>
+  <span class="badge">{{ i.category }}</span>
+  <span class="badge {{ badge(state) }}">{{ state }}</span>
+  <p class="note">📍 {{ i.location or '—' }} · Reported by {{ i.reporter or '—' }} on {{ i.created_at.strftime('%b %d, %Y %I:%M %p') }}
+    · Open for {{ age }} (response target {{ limit }} h){% if i.resolved_at %} · Resolved {{ i.resolved_at.strftime('%b %d, %Y %I:%M %p') }}{% endif %}</p>
+  <dl class="kv">
+    {% if i.incident_at %}<dt>Incident time</dt><dd>{{ i.incident_at.strftime('%b %d, %Y %I:%M %p') }}</dd>{% endif %}
+    {% if i.property_report_type %}<dt>Report type</dt><dd>{{ i.property_report_type }}</dd>{% endif %}
+    {% if i.room_no %}<dt>Room</dt><dd>{{ i.room_no }}</dd>{% endif %}
+    {% if i.involved %}<dt>{{ 'Owner / guest name' if i.category == 'Lost / Found Property' else 'People involved' }}</dt><dd>{{ i.involved }}</dd>{% endif %}
+    {% if i.item_desc %}<dt>Item / property</dt><dd>{{ i.item_desc }}</dd>{% endif %}
+    {% if i.contact %}<dt>Owner / guest contact</dt><dd>{{ i.contact }}</dd>{% endif %}
+    {% if i.contact %}<dt>Owner / guest contact</dt><dd>{{ i.contact }}</dd>{% endif %}
+    {% if i.injury_details %}<dt>Injury details</dt><dd>{{ i.injury_details }}</dd>{% endif %}
+    <dt>Assigned to</dt><dd>{{ i.assignee or 'Unassigned' }}</dd>
+    {% if i.escalation_level %}<dt>Escalated</dt><dd>to {{ i.escalated_to }} on {{ i.escalated_at.strftime('%b %d, %I:%M %p') }} (level {{ i.escalation_level }})</dd>{% endif %}
+  </dl>
+  {% if i.description %}<p class="pre">{{ i.description }}</p>{% endif %}
+  {% if i.photo_filename %}
+  <div class="incident-photo">
+    <h4>Incident photo</h4>
+    <a href="{{ url_for('incident_photo', iid=i.id) }}" target="_blank" rel="noopener">
+      <img src="{{ url_for('incident_photo', iid=i.id) }}" alt="Photo attached to incident #{{ i.id }}">
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h3>Investigation &amp; status</h3>
+    <form method="post" action="{{ url_for('update_incident', iid=i.id) }}">
+      <div class="row">
+        <div><label>Status</label><select name="status">{% for s in STATUSES %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+        <div><label>Investigator</label><select name="assigned_to"><option value="">Unassigned</option>
+          {% for a in admins %}<option value="{{ a.id }}" {{ 'selected' if i.assigned_to==a.id }}>{{ a.full_name }}</option>{% endfor %}</select></div>
+      </div>
+      <input name="note" placeholder="Update note (what was done?)">
+      <button class="btn b1">Post update</button>
+    </form>
+
+    {% if i.status != 'resolved' %}
+    <form method="post" action="{{ url_for('escalate_incident', iid=i.id) }}" style="margin-top:12px">
+      <div class="row">
+        <div><label>Escalate to</label><select name="to">{% for t in ESCALATE_TO %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div><label>Reason</label><input name="reason" placeholder="Why is this being escalated?"></div>
+      </div>
+      <button class="btn b3" data-confirm="Escalate incident #{{ i.id }}? This is recorded in the timeline." data-title="Escalate incident" data-yes="Escalate">⬆ Escalate</button>
+    </form>
+    {% endif %}
+
+    <ul class="timeline">
+      {% for u in updates %}
+      <li><b>{{ u.status|capitalize }}</b>
+        <span class="note">{{ u.created_at.strftime('%b %d, %I:%M %p') }} · {{ u.who or 'Unknown' }}</span>
+        {% if u.note %}<div>{{ u.note }}</div>{% endif %}</li>
+      {% endfor %}
+      <li><b>Reported</b>
+        <span class="note">{{ i.created_at.strftime('%b %d, %I:%M %p') }} · {{ i.reporter or 'Unknown' }}</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>📹 CCTV footage references</h3>
+    {% for r in refs %}
+    <div class="ref">
+      <b>{{ r.camera_name }}</b>
+      <div class="note">{{ r.footage_from.strftime('%b %d, %I:%M %p') }}{% if r.footage_to %} → {{ r.footage_to.strftime('%b %d, %I:%M %p') }}{% endif %}</div>
+      {% if r.clip_ref %}<div>🎞 {{ r.clip_ref }}</div>{% endif %}
+      {% if r.notes %}<div class="note">{{ r.notes }}</div>{% endif %}
+      <div class="note">Added by {{ r.who or '—' }}</div>
+      <form method="post" action="{{ url_for('delete_cctv', rid=r.id) }}" class="inl">
+        <button class="btn b3" data-confirm="Remove the CCTV reference for {{ r.camera_name }}?" data-title="Remove CCTV reference" data-yes="Remove">Remove</button>
+      </form>
+    </div>
+    {% else %}<p class="note">No CCTV references yet.</p>{% endfor %}
+
+    <form method="post" action="{{ url_for('add_cctv', iid=i.id) }}" style="margin-top:14px">
+      <input name="camera_name" list="cams" placeholder="Camera name (pick or type)" required>
+      <datalist id="cams">{% for c in cams %}<option value="{{ c.name }}">{% endfor %}</datalist>
+      <div class="row">
+        <div><label>Footage from</label><input type="datetime-local" name="footage_from" required></div>
+        <div><label>Footage to (optional)</label><input type="datetime-local" name="footage_to"></div>
+      </div>
+      <input name="clip_ref" placeholder="Clip file name / NVR reference">
+      <input name="notes" placeholder="What can be seen in the footage?">
+      <button class="btn b1">+ Add CCTV reference</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

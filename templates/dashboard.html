@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Security Dashboard{% endblock %}
+{% block content %}
+
+{% macro hbars(items) %}
+{% for it in items %}
+<div class="hrow">
+  <span class="hlab" title="{{ it.label }}">{{ it.label }}</span>
+    <div class="htrack">{% if it.value %}<div class="hbar {{ it.cls }}" data-w="{{ it.pct }}"></div>{% endif %}</div>
+  <span class="hval">{{ it.value }}</span>
+</div>
+{% else %}<p class="note">No data yet.</p>{% endfor %}
+{% endmacro %}
+
+{% macro line_chart(items, chart_label) %}
+{% if items %}
+{% set ns = namespace(max=1) %}
+{% for it in items %}{% if it.value > ns.max %}{% set ns.max = it.value %}{% endif %}{% endfor %}
+<svg class="trend-chart" viewBox="0 0 680 180" role="img" aria-label="{{ chart_label }}">
+  <g class="chart-grid">
+    {% for tick in range(4) %}
+    {% set y = 130 - tick * 35 %}
+    {% set value = (ns.max * tick / 3)|round|int %}
+    <line x1="44" y1="{{ y }}" x2="644" y2="{{ y }}"></line>
+    <text x="38" y="{{ y + 3 }}" text-anchor="end">{{ value }}</text>
+    {% endfor %}
+  </g>
+  <polyline class="chart-line" points="{% for it in items %}{% if not loop.first %} {% endif %}{{ 48 + loop.index0 * 580 / (items|length - 1) }},{{ 130 - it.value / ns.max * 105 }}{% endfor %}"></polyline>
+  {% for it in items %}
+  {% set x = 48 + loop.index0 * 580 / (items|length - 1) %}
+  {% set y = 130 - it.value / ns.max * 105 %}
+  <circle class="chart-point" cx="{{ x }}" cy="{{ y }}" r="3">
+    <title>{{ it.title }}: {{ it.value }}</title>
+  </circle>
+  {% if items|length <= 7 or (items|length <= 14 and loop.index0 % 2 == 0) or (items|length > 14 and loop.index0 % 5 == 0) or loop.last %}
+  <text class="chart-label" x="{{ x }}" y="158" text-anchor="middle">{{ it.label }}</text>
+  {% endif %}
+  {% endfor %}
+</svg>
+{% else %}<p class="note">No data yet.</p>{% endif %}
+{% endmacro %}
+
+<div class="stats">
+  <div class="card"><b>{{ s.open_inc }}</b>Unresolved incidents</div>
+  <div class="card"><b>{{ s.breached }}</b>Need escalation</div>
+  <div class="card"><b>{{ s.escalated }}</b>Escalated</div>
+  <div class="card"><b>{{ s.emergencies }}</b>Active emergencies</div>
+  <div class="card"><b>{{ s.guards }}</b>Guards on duty today</div>
+  <div class="card"><b>{{ s.patrols }}</b>Patrols today</div>
+  <div class="card"><b>{{ s.visitors }}</b>Visitors logged today</div>
+  <div class="card"><b>{{ s.keys_out }}</b>Keys out</div>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h3>Guards on duty today</h3>
+    {% for g in guards_today %}
+    <div class="ref"><b>{{ g.full_name }}</b> <span class="badge medium">{{ g.shift }}</span>
+      <div class="note">{{ g.job_title }}{% if g.post %} · {{ g.post }}{% endif %}</div></div>
+    {% else %}<p class="note">No shifts scheduled today. <a href="{{ url_for('schedule') }}">Open the guard schedule</a>.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <h3>Recent incidents</h3>
+    {% for i in recent %}
+    <div class="ref"><span class="badge {{ i.severity }}">{{ i.severity }}</span>
+      <a href="{{ url_for('incident_detail', iid=i.id) }}">#{{ i.id }} {{ i.title }}</a>
+      <div class="note">{{ i.status }} · {{ i.created_at.strftime('%b %d, %I:%M %p') }}</div></div>
+    {% else %}<p class="note">No incidents yet.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <h3>Recent visitor log</h3>
+    {% for v in recent_visitors %}
+    <div class="ref"><b>{{ v.visitor_name }}</b>
+      <div class="note">Visiting {{ v.guest_visited or '—' }}{% if v.room_no %} · Room {{ v.room_no }}{% endif %}</div>
+      <div class="note">In {{ v.time_in.strftime('%b %d, %I:%M %p') if v.time_in else '—' }} · Out {{ v.time_out.strftime('%b %d, %I:%M %p') if v.time_out else 'Still inside' }}</div></div>
+    {% else %}<p class="note">No visitors logged yet.</p>{% endfor %}
+    <a class="btn b2" href="{{ url_for('visitors') }}">View visitor log</a>
+  </div>
+  <div class="card">
+    <h3>Active emergencies</h3>
+    {% for e in emerg %}
+    <div class="ref"><span class="badge critical">{{ e.kind }}</span>
+      <a href="{{ url_for('case_detail', key='emergencies', rid=e.id) }}">#{{ e.id }} {{ e.location or '' }}</a>
+      <div class="note">Started {{ e.opened_at.strftime('%b %d, %I:%M %p') }}</div></div>
+    {% else %}<p class="note">No active emergencies. ✔</p>{% endfor %}
+  </div>
+</div>
+
+<h2 class="sec-title">📊 Analytics</h2>
+<form method="get" action="{{ url_for('dashboard') }}" class="analytics-toolbar">
+  <label for="analytics-days">Reporting period</label>
+  <select id="analytics-days" name="days">
+    {% for days in (7, 14, 30) %}
+    <option value="{{ days }}" {{ 'selected' if analytics_days == days }}>{{ days }} days</option>
+    {% endfor %}
+  </select>
+  <button class="btn b1">Update analytics</button>
+  <span class="note">Incident, visitor and patrol charts use the selected period.</span>
+</form>
+
+<div class="kpis">
+  <div class="card kpi"><b>{{ an.online }}</b>Online now<span class="note">active in the last 5 minutes</span></div>
+  <div class="card kpi"><b>{{ an.active_today }}</b>Active today<span class="note">of {{ an.accounts }} active accounts</span></div>
+  <div class="card kpi"><b>{{ an.incidents }}</b>Incidents ({{ an.period_days }} days)
+    {% if an.trend is not none %}<span class="trend {{ 'up' if an.trend > 0 else ('down' if an.trend < 0 else '') }}">{{ '▲' if an.trend > 0 else ('▼' if an.trend < 0 else '–') }} {{ an.trend|abs }}%</span>{% endif %}
+    <span class="note">vs the previous {{ an.period_days }} days</span></div>
+  <div class="card kpi"><b>{{ an.resolve_rate ~ '%' if an.resolve_rate is not none else '—' }}</b>Resolution rate<span class="note">incidents reported in {{ an.period_days }} days</span></div>
+  <div class="card kpi"><b>{{ an.avg_hours ~ ' h' if an.avg_hours is not none else '—' }}</b>Avg. time to resolve<span class="note">incidents reported in {{ an.period_days }} days</span></div>
+  <div class="card kpi"><b>{{ an.patrol.pct ~ '%' if an.patrol.pct is not none else '—' }}</b>Patrol compliance today<span class="note">completed vs missed</span></div>
+  <div class="card kpi"><b>{{ an.pending }}</b>Accounts pending<span class="note">waiting for approval</span></div>
+</div>
+
+<div class="cols">
+  <div class="card"><h3>Incidents: last {{ an.period_days }} days</h3>{{ line_chart(an.inc_daily, 'Daily incidents over the last ' ~ an.period_days ~ ' days') }}</div>
+  <div class="card"><h3>Incidents by category ({{ an.period_days }} days)</h3>{{ hbars(an.by_category) }}</div>
+  <div class="card"><h3>Unresolved incidents by severity</h3>{{ hbars(an.by_severity) }}</div>
+  <div class="card"><h3>Incident hotspots ({{ an.period_days }} days)</h3>{{ hbars(an.hotspots) }}</div>
+  <div class="card"><h3>Visitors: last {{ an.period_days }} days</h3>{{ line_chart(an.visit_daily, 'Daily visitors over the last ' ~ an.period_days ~ ' days') }}</div>
+  <div class="card"><h3>Patrols: last {{ an.period_days }} days</h3>{{ line_chart(an.patrol_daily, 'Daily patrols over the last ' ~ an.period_days ~ ' days') }}</div>
+
+  <div class="card">
+    <h3>Today's patrol schedule</h3>
+    {% if an.patrol.total %}
+        <div class="segbar">{% for sg in an.patrol.segs %}{% if sg.value %}<span class="seg {{ sg.cls }}" data-w="{{ sg.w }}" title="{{ sg.label }}: {{ sg.value }}"></span>{% endif %}{% endfor %}</div>
+    <div class="legend">{% for sg in an.patrol.segs %}<span><i class="dot {{ sg.cls }}"></i>{{ sg.label }}: <b>{{ sg.value }}</b></span>{% endfor %}</div>
+    {% else %}<p class="note">No patrols scheduled. Add some on the Patrol Schedule page.</p>{% endif %}
+  </div>
+
+  <div class="card"><h3>Guards on duty by shift (today)</h3>{{ hbars(an.by_shift) }}</div>
+
+  <div class="card">
+    <h3>Recently active users</h3>
+    {% for p in an.people %}
+    <div class="urow">
+      <span class="chip">
+        {% if p.profile_photo_filename %}<img class="avatar" src="{{ url_for('profile_photo', uid=p.id) }}" alt="">
+        {% else %}<span class="avatar">{{ initials(p.name) }}</span>{% endif %}
+        <span><b>{{ p.name }}</b><br><span class="note">{{ p.job or 'User' }}</span></span></span>
+      <span class="badge {{ 'ok' if p.online else '' }}">{{ 'Online' if p.online else p.ago }}</span>
+    </div>
+    {% else %}<p class="note">No activity recorded yet.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block auth %}
+<div class="card">
+  <h2>Create User Account</h2>
+  <form method="post">
+    <label>Full name (must be unique)</label><input name="full_name" required>
+    <label>Username (must be unique)</label><input name="username" required>
+    <label>Email</label><input type="email" name="email">
+    <label>Phone</label><input name="phone">
+    <label>Job title</label><input name="job_title" placeholder="e.g. Security Supervisor">
+    <label>Employee no. (optional, unique)</label><input name="employee_no">
+    <label>Password (min. 8 characters)</label><input type="password" name="password" required minlength="8">
+    <label>Confirm password</label><input type="password" name="confirm" required minlength="8">
+    <button class="btn b1">Create Account</button>
+  </form>
+  <p class="note">An existing admin must approve your account before you can sign in.</p>
+  <p class="links"><a href="{{ url_for('login') }}">← Back to login</a></p>
+</div>
+{% endblock %}

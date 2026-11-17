@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}{{ 'My Profile' if editable else 'Admin Profile' }}{% endblock %}
+{% block content %}
+{% if not editable %}<p><a href="{{ url_for('users') }}">← Back to user accounts</a></p>{% endif %}
+<div class="cols">
+  <div class="card profile-head">
+    {% if u.profile_photo_filename %}
+    <img class="avatar lg profile-picture" src="{{ url_for('profile_photo', uid=u.id) }}" alt="{{ u.full_name }} profile picture">
+    {% else %}<span class="avatar lg">{{ initials(u.full_name) }}</span>{% endif %}
+    <h3 style="margin-top:12px">{{ u.full_name }}</h3>
+    {% if editable %}
+    <form id="profile-photo-form" method="post" action="{{ url_for('update_profile_photo') }}" enctype="multipart/form-data">
+      <input id="profile-photo-input" type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp" hidden>
+      <button id="choose-profile-photo" class="btn b2" type="button">{{ 'Choose another picture' if u.profile_photo_filename else 'Choose profile picture' }}</button>
+      {% if u.profile_photo_filename %}
+      <button id="edit-current-profile-photo" class="btn b2" type="button">Edit / crop current picture</button>
+      {% endif %}
+      <div id="profile-crop-editor" class="profile-crop-editor" hidden>
+        <p class="note">Drag the picture to reposition it. Use the slider to zoom.</p>
+        <canvas id="profile-crop-canvas" width="320" height="320" aria-label="Profile picture crop preview"></canvas>
+        <label for="profile-crop-zoom">Zoom</label>
+        <input id="profile-crop-zoom" type="range" min="1" max="3" step="0.01" value="1">
+        <button id="save-profile-crop" class="btn b1" type="button">Crop &amp; save picture</button>
+        <button id="cancel-profile-crop" class="btn b2" type="button">Cancel</button>
+      </div>
+    </form>
+    {% if u.profile_photo_filename %}
+    <form method="post" action="{{ url_for('remove_profile_photo') }}">
+      <button class="btn b3" data-confirm="Remove your profile picture?" data-title="Remove profile picture" data-yes="Remove picture">Remove picture</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    <p class="note">{{ u.job_title or 'No job title set' }}</p>
+    <span class="badge ok">Admin</span>
+    {% if not u.is_active %}<span class="badge high">Pending approval</span>{% endif %}
+    <dl class="kv">
+      <dt>Username</dt><dd>{{ u.username }}</dd>
+      <dt>Employee no.</dt><dd>{{ u.employee_no or '—' }}</dd>
+      <dt>Email</dt><dd>{{ u.email or '—' }}</dd>
+      <dt>Phone</dt><dd>{{ u.phone or '—' }}</dd>
+      <dt>Member since</dt><dd>{{ u.created_at.strftime('%b %d, %Y') }}</dd>
+      <dt>Last login</dt><dd>{{ u.last_login.strftime('%b %d, %Y %I:%M %p') if u.last_login else '—' }}</dd>
+    </dl>
+  </div>
+
+  {% if editable %}
+  <div style="display:grid;gap:18px;align-content:start">
+    <div class="card">
+      <h3>Edit Profile</h3>
+      <form method="post">
+        <label>Full name (must be unique)</label><input name="full_name" value="{{ u.full_name }}" required>
+        <label>Username (must be unique)</label><input name="username" value="{{ u.username }}" required>
+        <label>Email</label><input type="email" name="email" value="{{ u.email or '' }}">
+        <label>Phone</label><input name="phone" value="{{ u.phone or '' }}">
+        <label>Job title</label><input name="job_title" value="{{ u.job_title or '' }}">
+        <label>Employee no. (unique)</label><input name="employee_no" value="{{ u.employee_no or '' }}">
+        <button class="btn b1">Save changes</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Change Password</h3>
+      <form method="post" action="{{ url_for('change_password') }}">
+        <input type="password" name="current" placeholder="Current password" required>
+        <input type="password" name="new" placeholder="New password (min. 8)" required minlength="8">
+        <input type="password" name="confirm" placeholder="Confirm new password" required minlength="8">
+        <button class="btn b1">Update password</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if editable %}
+<script>
+(() => {
+  const input = document.getElementById('profile-photo-input');
+  const choose = document.getElementById('choose-profile-photo');
+  const editCurrent = document.getElementById('edit-current-profile-photo');
+  const currentPhoto = document.querySelector('.profile-picture');
+  const editor = document.getElementById('profile-crop-editor');
+  const canvas = document.getElementById('profile-crop-canvas');
+  const context = canvas.getContext('2d');
+  const zoomSlider = document.getElementById('profile-crop-zoom');
+  const save = document.getElementById('save-profile-crop');
+  const cancel = document.getElementById('cancel-profile-crop');
+  const form = document.getElementById('profile-photo-form');
+  let image = null, imageUrl = null, scale = 1, offsetX = 0, offsetY = 0, drag = null;
+
+  function dimensions() {
+    const fit = canvas.width / Math.min(image.naturalWidth, image.naturalHeight);
+    return {width: image.naturalWidth * fit * scale, height: image.naturalHeight * fit * scale};
+  }
+
+  function draw() {
+    if (!image) return;
+    const size = dimensions();
+    offsetX = Math.min(0, Math.max(canvas.width - size.width, offsetX));
+    offsetY = Math.min(0, Math.max(canvas.height - size.height, offsetY));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, offsetX, offsetY, size.width, size.height);
+  }
+
+  function openEditor(source, objectUrl = null) {
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    imageUrl = objectUrl;
+    image = new Image();
+    image.onload = () => {
+      scale = 1;
+      zoomSlider.value = '1';
+      const size = dimensions();
+      offsetX = (canvas.width - size.width) / 2;
+      offsetY = (canvas.height - size.height) / 2;
+      editor.hidden = false;
+      choose.textContent = 'Choose another picture';
+      draw();
+    };
+    image.onerror = () => {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+      imageUrl = null;
+      image = null;
+      input.value = '';
+      alert('This file could not be opened as an image.');
+    };
+    image.src = source;
+  }
+
+  choose.addEventListener('click', () => input.click());
+  if (editCurrent && currentPhoto) {
+    editCurrent.addEventListener('click', () => openEditor(currentPhoto.src));
+  }
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    openEditor(objectUrl, objectUrl);
+  });
+  zoomSlider.addEventListener('input', () => {
+    scale = Number(zoomSlider.value);
+    draw();
+  });
+  canvas.addEventListener('pointerdown', event => {
+    drag = {x: event.clientX, y: event.clientY, offsetX, offsetY};
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (!drag) return;
+    const bounds = canvas.getBoundingClientRect();
+    offsetX = drag.offsetX + (event.clientX - drag.x) * canvas.width / bounds.width;
+    offsetY = drag.offsetY + (event.clientY - drag.y) * canvas.height / bounds.height;
+    draw();
+  });
+  canvas.addEventListener('pointerup', () => { drag = null; });
+  canvas.addEventListener('pointercancel', () => { drag = null; });
+  cancel.addEventListener('click', () => {
+    image = null;
+    input.value = '';
+    editor.hidden = true;
+    save.disabled = false;
+    save.textContent = 'Crop & save picture';
+    choose.textContent = '{{ "Choose another picture" if u.profile_photo_filename else "Choose profile picture" }}';
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    imageUrl = null;
+  });
+  save.addEventListener('click', () => {
+    if (!image) return;
+    save.disabled = true;
+    save.textContent = 'Preparing picture…';
+    canvas.toBlob(blob => {
+      if (!blob) {
+        save.disabled = false;
+        save.textContent = 'Crop & save picture';
+        alert('The cropped picture could not be created. Please try another image.');
+        return;
+      }
+      const files = new DataTransfer();
+      files.items.add(new File([blob], 'profile-picture.png', {type: 'image/png'}));
+      input.files = files.files;
+      form.requestSubmit();
+    }, 'image/png');
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

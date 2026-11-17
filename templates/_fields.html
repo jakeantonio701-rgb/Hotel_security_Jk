@@ -1,0 +1,16 @@
+{% macro field_inputs(fields) %}
+<div class="row">
+  {% for f in fields %}
+  <div>
+    <label>{{ f.label }}{% if f.req %} *{% endif %}</label>
+    {% if f.type == 'select' %}
+      <select name="{{ f.col }}">{% for o in f.opts %}<option>{{ o }}</option>{% endfor %}</select>
+    {% elif f.type == 'textarea' %}
+      <textarea name="{{ f.col }}" rows="2" {% if f.req %}required{% endif %}></textarea>
+    {% else %}
+      <input name="{{ f.col }}" type="{{ {'text':'text','number':'number','date':'date','datetime':'datetime-local','time':'time'}[f.type] }}" value="{{ f.default }}" {% if f.req %}required{% endif %}>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Security Reports{% endblock %}
+{% block content %}
+<form method="get" class="card">
+  <div class="row">
+    <div><label>From</label><input type="date" name="from" value="{{ d_from }}"></div>
+    <div><label>To</label><input type="date" name="to" value="{{ d_to }}"></div>
+    <div><label>Severity (incident report)</label>
+      <select name="severity"><option value="">All</option>{% for s in SEVERITIES %}<option {{ 'selected' if chosen.severity==s }}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>Status (incident report)</label>
+      <select name="status"><option value="">All</option>{% for s in STATUSES %}<option {{ 'selected' if chosen.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>Category (incident report)</label>
+      <select name="category"><option value="">All</option>{% for c in CATEGORIES %}<option {{ 'selected' if chosen.category==c }}>{{ c }}</option>{% endfor %}</select></div>
+  </div>
+  <button class="btn b1">Update summary</button>
+
+  <h3 style="margin-top:16px">🖨 Print or export a report</h3>
+  <p class="note">Uses the dates above. In the print window choose <b>Save as PDF</b> to keep a digital copy.</p>
+  <div class="row">
+    <div><label>Report</label>
+      <select name="type">{% for k, title in REPORT_TYPES %}<option value="{{ k }}">{{ title }}</option>{% endfor %}</select></div>
+  </div>
+  <button class="btn b1" formaction="{{ url_for('print_report') }}" formtarget="_blank">🖨 Print / PDF</button>
+  <button class="btn b2" formaction="{{ url_for('csv_report') }}">⬇ Download CSV</button>
+</form>
+
+<p class="note">Incident summary for <b>{{ d_from }}</b> to <b>{{ d_to }}</b></p>
+<div class="stats">
+  <div class="card"><b>{{ stats.total }}</b>Incidents</div>
+  <div class="card"><b>{{ stats.resolved }}</b>Resolved</div>
+  <div class="card"><b>{{ stats.avg_hours if stats.avg_hours is not none else '—' }}</b>Avg. hours to resolve</div>
+  <div class="card"><b>{{ stats.visitors }}</b>Visitors logged</div>
+  <div class="card"><b>{{ stats.patrols }}</b>Patrols logged</div>
+</div>
+
+<div class="cols">
+  <div class="wrap"><table><tr><th>Severity</th><th>Count</th></tr>
+    {% for k, v in by_sev.items() %}<tr><td><span class="badge {{ k }}">{{ k }}</span></td><td>{{ v }}</td></tr>{% endfor %}</table></div>
+  <div class="wrap"><table><tr><th>Status</th><th>Count</th></tr>
+    {% for k, v in by_status.items() %}<tr><td>{{ k|capitalize }}</td><td>{{ v }}</td></tr>{% endfor %}</table></div>
+  <div class="wrap"><table><tr><th>Category</th><th>Count</th></tr>
+    {% for k, v in by_cat.items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}</table></div>
+</div>
+
+<h3 style="margin-top:24px">Incident list</h3>
+<div class="wrap"><table>
+  <tr><th>#</th><th>Title</th><th>Category</th><th>Location</th><th>Severity</th><th>Status</th><th>Reported by</th><th>Reported</th><th>Resolved</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.id }}</td><td><a href="{{ url_for('incident_detail', iid=r.id) }}">{{ r.title }}</a></td>
+    <td>{{ r.category }}</td><td>{{ r.location }}</td>
+    <td><span class="badge {{ r.severity }}">{{ r.severity }}</span></td><td>{{ r.status }}</td><td>{{ r.reporter }}</td>
+    <td>{{ r.created_at.strftime('%b %d, %I:%M %p') }}</td>
+    <td>{{ r.resolved_at.strftime('%b %d, %I:%M %p') if r.resolved_at else '—' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="9" class="note">No incidents match these filters.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

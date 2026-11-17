@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field_inputs %}
+{% block title %}{{ cfg.title }}{% endblock %}
+{% block content %}
+{% if cfg.note %}<p class="note">{{ cfg.note }}</p>{% endif %}
+<div class="card">
+  <h3>Add new</h3>
+  <form method="post" action="{{ url_for('module_add', key=key) }}">
+    {{ field_inputs(fields) }}
+    <button class="btn b1">+ Save</button>
+  </form>
+</div>
+
+<div class="wrap"><table>
+  <tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}<th>Actions</th></tr>
+  {% for r in table %}
+  <tr>
+    {% for text, cls in r.cells %}<td>{% if cls %}<span class="badge {{ cls }}">{{ text }}</span>{% else %}{{ text }}{% endif %}</td>{% endfor %}
+    <td>
+      {% if cfg.setter %}
+      <form method="post" action="{{ url_for('module_set', key=key, rid=r.id) }}" class="inl">
+        <select name="value">{% for o in cfg.setter[1] %}<option {{ 'selected' if r.raw[cfg.setter[0]]==o }}>{{ o }}</option>{% endfor %}</select>
+        <button class="btn b2">Update</button>
+      </form>
+      {% endif %}
+      {% if cfg.close and r.raw[cfg.close[0]] is none %}
+      <form method="post" action="{{ url_for('module_close', key=key, rid=r.id) }}" class="inl">
+        <button class="btn b1" data-confirm="{{ cfg.close[2] }}" data-title="{{ cfg.close[1] }}" data-yes="{{ cfg.close[1] }}">{{ cfg.close[1] }}</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('module_delete', key=key, rid=r.id) }}" class="inl">
+        <button class="btn b3" data-confirm="Delete this record? This cannot be undone." data-title="Delete record" data-yes="Delete">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="{{ headers|length + 1 }}" class="note">Nothing here yet.</td></tr>
+  {% endfor %}
+</table></div>
+{% if key == 'patrol_schedule' %}
+<section class="checkpoint-management">
+  <h2 class="sec-title">Security Checkpoints</h2>
+  {% if checkpoint_cfg.note %}<p class="note">{{ checkpoint_cfg.note }}</p>{% endif %}
+  <div class="card">
+    <h3>Add checkpoint</h3>
+    <form method="post" action="{{ url_for('module_add', key='checkpoints') }}">
+      <input type="hidden" name="return_to" value="patrol_schedule">
+      {{ field_inputs(checkpoint_fields) }}
+      <button class="btn b1">+ Save checkpoint</button>
+    </form>
+  </div>
+  <div class="wrap"><table>
+    <tr>{% for h in checkpoint_headers %}<th>{{ h }}</th>{% endfor %}<th>Actions</th></tr>
+    {% for r in checkpoint_table %}
+    <tr>
+      {% for text, cls in r.cells %}<td>{% if cls %}<span class="badge {{ cls }}">{{ text }}</span>{% else %}{{ text }}{% endif %}</td>{% endfor %}
+      <td>
+        <form method="post" action="{{ url_for('module_delete', key='checkpoints', rid=r.id) }}" class="inl">
+          <input type="hidden" name="return_to" value="patrol_schedule">
+          <button class="btn b3" data-confirm="Delete this checkpoint? This cannot be undone." data-title="Delete checkpoint" data-yes="Delete">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="{{ checkpoint_headers|length + 1 }}" class="note">No checkpoints configured yet.</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+{% if key == 'cameras' %}
+<section class="camera-references">
+  <h2 class="sec-title">Footage references</h2>
+  <p class="note">Incident-linked camera footage references, newest first.</p>
+  <div class="wrap"><table>
+    <tr><th>Incident</th><th>Camera</th><th>Footage</th><th>Clip / NVR ref.</th><th>Notes</th><th>Added by</th></tr>
+    {% for r in refs %}
+    <tr>
+      <td><a href="{{ url_for('incident_detail', iid=r.incident_id) }}">#{{ r.incident_id }} {{ r.title }}</a>
+        <span class="badge {{ r.severity }}">{{ r.severity }}</span></td>
+      <td><b>{{ r.camera_name }}</b></td>
+      <td>{{ r.footage_from.strftime('%b %d, %I:%M %p') }}{% if r.footage_to %}<br>→ {{ r.footage_to.strftime('%b %d, %I:%M %p') }}{% endif %}</td>
+      <td>{{ r.clip_ref or '—' }}</td>
+      <td>{{ r.notes or '—' }}</td>
+      <td>{{ r.who or '—' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="note">No footage references found.</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

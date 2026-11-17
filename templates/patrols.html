@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Patrol Records{% endblock %}
+{% block content %}
+<div class="stats">
+  <div class="card"><b>{{ stats.today }}</b>Patrols today</div>
+  <div class="card"><b>{{ stats.issues }}</b>Issues found today</div>
+  <div class="card"><b style="font-size:1.2rem">{{ stats.last.strftime('%b %d, %I:%M %p') if stats.last else '—' }}</b>Last patrol</div>
+</div>
+
+{% if can('add_patrol') %}
+<div class="card">
+  <h3>Log a Patrol</h3>
+  <form method="post" action="{{ url_for('add_patrol') }}">
+    <div class="row">
+      <div><label>Area checked</label><select name="area">{% for a in AREAS %}<option>{{ a }}</option>{% endfor %}</select></div>
+      <div><label>Result</label><select name="result"><option value="clear">All clear</option><option value="issue">Issue found</option></select></div>
+      <div><label>Patrol date and time</label>
+        <input id="patrolled-at" type="datetime-local" name="patrolled_at" value="{{ patrol_now }}" min="{{ patrol_now }}" required>
+      </div>
+    </div>
+    <textarea name="notes" rows="2" placeholder="Notes (required if an issue was found)"></textarea>
+    <button class="btn b1">+ Record Patrol</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="top">
+  <div>
+    {% for k, v in [('today','Today'),('7','Last 7 days'),('30','Last 30 days'),('all','All')] %}
+    <a class="btn {{ 'b1' if rng==k else 'b2' }}" href="{{ url_for('patrols', range=k, area=area) }}">{{ v }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" class="inl">
+    <input type="hidden" name="range" value="{{ rng }}">
+    <select name="area" style="width:auto;display:inline-block;margin:0">
+      <option value="">All areas</option>
+      {% for a in AREAS %}<option {{ 'selected' if area==a }}>{{ a }}</option>{% endfor %}
+    </select>
+    <button class="btn b2">Filter</button>
+  </form>
+</div>
+
+<div class="wrap"><table>
+  <tr><th>When</th><th>Area</th><th>Result</th><th>Officer</th><th>Notes</th><th>Actions</th></tr>
+  {% for p in patrols %}
+  <tr>
+    <td>{{ p.patrolled_at.strftime('%b %d, %I:%M %p') }}</td>
+    <td><b>{{ p.area }}</b></td>
+    <td>{% if p.result == 'issue' %}<span class="badge high">Issue found</span>{% else %}<span class="badge ok">All clear</span>{% endif %}</td>
+    <td>{{ p.guard }}</td>
+    <td>{{ p.notes }}</td>
+    <td>
+      {% if p.result == 'issue' and can('add_incident') %}
+      <a class="btn b1" href="{{ url_for('incidents', loc=p.area) }}">Report incident</a>
+      {% endif %}
+      {% if can('delete_patrol') %}
+      <form method="post" action="{{ url_for('delete_patrol', pid=p.id) }}" class="inl">
+        <button class="btn b3" data-confirm="Delete this patrol record?" data-title="Delete patrol record" data-yes="Delete">Delete</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="note">No patrol records found.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const input = document.getElementById('patrolled-at');
+  if (!input) return;
+  const updateMinimum = () => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    input.min = local;
+    if (!input.dataset.edited && input.value < local) input.value = local;
+  };
+  input.addEventListener('input', () => { input.dataset.edited = 'true'; });
+  updateMinimum();
+  window.setInterval(updateMinimum, 30000);
+})();
+</script>
+{% endblock %}
